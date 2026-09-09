@@ -3,7 +3,7 @@
 An end-to-end walkthrough of the ML lifecycle on Databricks, built around a **Predicting Return
 to Hospital (PRTH)** model: train a LightGBM classifier that predicts 30-day readmission, register
 it in Unity Catalog, serve it — offline and in real time — with **automatic feature lookup**, and
-(later) monitor it.
+(later) monitor it
 
 The notebooks are designed to be run **in order**, and to mirror a real org where the **training
 team** and the **deployment team** work in **separate workspaces attached to the same Unity Catalog
