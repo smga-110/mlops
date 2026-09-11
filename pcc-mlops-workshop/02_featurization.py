@@ -138,7 +138,9 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
 
 mlflow.set_registry_uri("databricks-uc")
-# MLflow logs to this notebook's own experiment by default — no explicit path needed.
+# Log to an explicit experiment under the user's home folder (stable and always exists, unlike the
+# notebook's default experiment, which can point at a deleted experiment after re-clone / schema drop).
+mlflow.set_experiment(f"/Users/{current_user}/prth-readmission")
 
 CATEGORICALS = ["primary_diagnosis", "discharge_disposition", "insurance_type"]
 NUMERICS = [
