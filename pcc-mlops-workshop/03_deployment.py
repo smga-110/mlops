@@ -264,3 +264,50 @@ for pid, pred in zip(sample_ids, response.predictions):
 # MAGIC `fe.log_model` and automatic feature lookup.
 # MAGIC
 # MAGIC ✅ **Deployed.** Next: **`04_monitoring`** to turn on inference logging and drift dashboards.
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Clean up (optional but recommended)
+# MAGIC
+# MAGIC The serving endpoint and the **Lakebase online store** are **always-on, billable** resources —
+# MAGIC the online store is a managed Postgres instance that keeps running (and costing) until deleted.
+# MAGIC In a workshop, **each attendee provisions their own**, so it's easy to leave a room's worth of
+# MAGIC instances running. Run the cell below when you're done to tear them down.
+# MAGIC
+# MAGIC The code is **commented out** so it never fires on "Run All" — **uncomment to execute**. It
+# MAGIC deletes in dependency order (endpoint → synced online table → online store); each step is wrapped
+# MAGIC so a partial/prior teardown still completes.
+# MAGIC
+# MAGIC > This keeps your trained model, feature table, and raw data (they're cheap to store). To remove
+# MAGIC > those too, uncomment the final `DROP SCHEMA ... CASCADE` line.
+
+# COMMAND ----------
+
+# --- UNCOMMENT THE LINES BELOW TO TEAR DOWN THIS RUN'S SERVING + ONLINE-STORE RESOURCES ---
+
+# # 1. Delete the serving endpoint (stops the serving compute).
+# try:
+#     w.serving_endpoints.delete(name=ENDPOINT_NAME)
+#     print(f"Deleted endpoint {ENDPOINT_NAME}")
+# except Exception as e:
+#     print(f"Endpoint {ENDPOINT_NAME} not deleted: {e}")
+
+# # 2. Delete the synced online table (the UC object backed by the online store).
+# try:
+#     w.database.delete_synced_database_table(ONLINE_TABLE)
+#     print(f"Deleted synced online table {ONLINE_TABLE}")
+# except Exception as e:
+#     print(f"Synced table {ONLINE_TABLE} not deleted: {e}")
+
+# # 3. Delete the Lakebase online store (this is the always-on, billable instance).
+# try:
+#     fe.delete_online_store(name=ONLINE_STORE)
+#     print(f"Deleted online store {ONLINE_STORE}")
+# except Exception as e:
+#     print(f"Online store {ONLINE_STORE} not deleted: {e}")
+
+# # 4. (Full teardown) Also drop the schema — removes the feature table, labels, raw data, and model.
+# #    Leave commented unless you want a completely clean slate.
+# # spark.sql(f"DROP SCHEMA IF EXISTS {bq(CATALOG + '.' + SCHEMA)} CASCADE")
+# # print(f"Dropped schema {CATALOG}.{SCHEMA}")
