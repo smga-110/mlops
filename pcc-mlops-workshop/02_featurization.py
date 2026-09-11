@@ -29,7 +29,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install --quiet databricks-feature-engineering==0.13.0.1 "mlflow>=3.8.1" lightgbm==4.5.0 scikit-learn==1.5.2
+# MAGIC %pip install --quiet --index-url https://artifactory.pointclickcare.com/artifactory/api/pypi/pypi-virtual/simple/ databricks-feature-engineering==0.13.0.1 "mlflow>=3.8.1" lightgbm==4.5.0 scikit-learn==1.5.2
 # MAGIC %restart_python
 
 # COMMAND ----------

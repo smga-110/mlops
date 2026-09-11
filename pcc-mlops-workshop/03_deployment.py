@@ -20,7 +20,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install --quiet databricks-feature-engineering==0.13.0.1 "mlflow>=3.8.1" databricks-sdk
+# MAGIC %pip install --quiet --index-url https://artifactory.pointclickcare.com/artifactory/api/pypi/pypi-virtual/simple/ databricks-feature-engineering==0.13.0.1 "mlflow>=3.8.1" databricks-sdk
 # MAGIC %restart_python
 
 # COMMAND ----------
