@@ -1,4 +1,4 @@
-# MLOps on Databricks — PRTH Workshop
+# MLOps on Databricks — E2E vWorkshop
 
 An end-to-end walkthrough of the ML lifecycle on Databricks, built around a **Predicting Return
 to Hospital (PRTH)** model: train a LightGBM classifier that predicts 30-day readmission, register
