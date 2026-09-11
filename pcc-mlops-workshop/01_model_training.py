@@ -155,7 +155,10 @@ from sklearn.metrics import roc_auc_score, accuracy_score, precision_score, reca
 from mlflow.models.signature import infer_signature
 
 mlflow.set_registry_uri("databricks-uc")            # register models INTO Unity Catalog
-# MLflow logs to this notebook's own experiment by default — no explicit path needed.
+# Log to an explicit experiment under the user's home folder. This is stable and always exists,
+# unlike the notebook's default experiment (which can end up pointing at a deleted experiment if
+# the notebook is re-cloned or a related schema is dropped).
+mlflow.set_experiment(f"/Users/{current_user}/prth-readmission")
 
 CATEGORICALS = ["primary_diagnosis", "discharge_disposition", "insurance_type"]
 NUMERICS = [
