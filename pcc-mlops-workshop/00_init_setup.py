@@ -30,7 +30,7 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "pcc_mlops_workshop", "Catalog (must have CREATE SCHEMA)")
+dbutils.widgets.text("catalog", "pcc_mlops_demo_catalog", "Catalog (must have CREATE SCHEMA)")
 dbutils.widgets.text("schema_override", "", "Schema override (blank = derive from email)")
 
 CATALOG = dbutils.widgets.get("catalog").strip()

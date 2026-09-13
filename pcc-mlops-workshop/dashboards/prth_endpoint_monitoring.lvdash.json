@@ -1,0 +1,718 @@
+{
+  "datasets": [
+    {
+      "name": "ds_summary",
+      "displayName": "Summary",
+      "queryLines": [
+        "SELECT count(*) AS total_requests, round(sum(CASE WHEN status_code <> 200 THEN 1 ELSE 0 END)/count(*), 4) AS error_rate, round(approx_percentile(execution_duration_ms, 0.5), 1) AS p50_ms, round(approx_percentile(execution_duration_ms, 0.95), 1) AS p95_ms, round(approx_percentile(execution_duration_ms, 0.99), 1) AS p99_ms, count(DISTINCT get_json_object(request, '$.dataframe_records[0].patient_id')) AS distinct_patients FROM {{CATALOG}}.{{SCHEMA}}.prth_endpoint_tracking_payload"
+      ]
+    },
+    {
+      "name": "ds_volume",
+      "displayName": "Request volume",
+      "queryLines": [
+        "SELECT date_trunc('SECOND', request_time) AS ts, count(*) AS requests FROM {{CATALOG}}.{{SCHEMA}}.prth_endpoint_tracking_payload GROUP BY 1 ORDER BY 1"
+      ]
+    },
+    {
+      "name": "ds_latency",
+      "displayName": "Latency over time",
+      "queryLines": [
+        "SELECT date_trunc('SECOND', request_time) AS ts, round(approx_percentile(execution_duration_ms, 0.5), 1) AS p50_ms, round(approx_percentile(execution_duration_ms, 0.95), 1) AS p95_ms FROM {{CATALOG}}.{{SCHEMA}}.prth_endpoint_tracking_payload GROUP BY 1 ORDER BY 1"
+      ]
+    },
+    {
+      "name": "ds_pred",
+      "displayName": "Prediction mix",
+      "queryLines": [
+        "SELECT CASE WHEN get_json_object(response, '$.predictions[0]') = '1' THEN 'Readmit (HIGH)' ELSE 'No readmit (LOW)' END AS prediction, count(*) AS requests FROM {{CATALOG}}.{{SCHEMA}}.prth_endpoint_tracking_payload GROUP BY 1"
+      ]
+    },
+    {
+      "name": "ds_span",
+      "displayName": "Latency by span",
+      "queryLines": [
+        "SELECT name AS span, round(approx_percentile((end_time_unix_nano - start_time_unix_nano)/1e6, 0.5), 2) AS p50_ms, round(approx_percentile((end_time_unix_nano - start_time_unix_nano)/1e6, 0.95), 2) AS p95_ms FROM {{CATALOG}}.{{SCHEMA}}.prth_endpoint_tracking_otel_spans GROUP BY name ORDER BY p50_ms DESC"
+      ]
+    },
+    {
+      "name": "ds_recent",
+      "displayName": "Recent requests",
+      "queryLines": [
+        "SELECT date_format(request_time, 'yyyy-MM-dd HH:mm:ss') AS request_time, get_json_object(request, '$.dataframe_records[0].patient_id') AS patient_id, get_json_object(response, '$.predictions[0]') AS prediction, execution_duration_ms, status_code FROM {{CATALOG}}.{{SCHEMA}}.prth_endpoint_tracking_payload ORDER BY request_time DESC LIMIT 100"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "overview",
+      "displayName": "Overview",
+      "pageType": "PAGE_TYPE_CANVAS",
+      "layout": [
+        {
+          "widget": {
+            "name": "title",
+            "multilineTextboxSpec": {
+              "lines": [
+                "## PRTH Endpoint Monitoring"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "subtitle",
+            "multilineTextboxSpec": {
+              "lines": [
+                "Real-time readmission endpoint \u2014 traffic, latency, and where the milliseconds go. Source: inference & OTEL-span logging tables."
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 1,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-total",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "fields": [
+                    {
+                      "name": "total_requests",
+                      "expression": "`total_requests`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "total_requests",
+                  "displayName": "Total requests"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Total requests"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-patients",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "fields": [
+                    {
+                      "name": "distinct_patients",
+                      "expression": "`distinct_patients`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "distinct_patients",
+                  "displayName": "Distinct patients"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Distinct patients"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-error",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "fields": [
+                    {
+                      "name": "error_rate",
+                      "expression": "`error_rate`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "error_rate",
+                  "displayName": "Error rate"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Error rate"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 2,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-p50",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "fields": [
+                    {
+                      "name": "p50_ms",
+                      "expression": "`p50_ms`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "p50_ms",
+                  "displayName": "Latency p50 (ms)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Latency p50 (ms)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 5,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-p95",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "fields": [
+                    {
+                      "name": "p95_ms",
+                      "expression": "`p95_ms`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "p95_ms",
+                  "displayName": "Latency p95 (ms)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Latency p95 (ms)"
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 5,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi-p99",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_summary",
+                  "fields": [
+                    {
+                      "name": "p99_ms",
+                      "expression": "`p99_ms`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "p99_ms",
+                  "displayName": "Latency p99 (ms)"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Latency p99 (ms)"
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 5,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "hdr-latency",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Latency breakdown \u2014 where the milliseconds go"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 8,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "span-latency",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_span",
+                  "fields": [
+                    {
+                      "name": "span",
+                      "expression": "`span`"
+                    },
+                    {
+                      "name": "sum(p50_ms)",
+                      "expression": "SUM(`p50_ms`)"
+                    },
+                    {
+                      "name": "sum(p95_ms)",
+                      "expression": "SUM(`p95_ms`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "span",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Span"
+                },
+                "y": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "sum(p50_ms)",
+                      "displayName": "p50 (ms)"
+                    },
+                    {
+                      "fieldName": "sum(p95_ms)",
+                      "displayName": "p95 (ms)"
+                    }
+                  ]
+                },
+                "label": {
+                  "show": true
+                }
+              },
+              "mark": {
+                "layout": "group",
+                "colors": [
+                  "#FFAB00",
+                  "#FF3621"
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Latency by span (feature lookup vs. model)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 9,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "latency-ts",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_latency",
+                  "fields": [
+                    {
+                      "name": "ts",
+                      "expression": "`ts`"
+                    },
+                    {
+                      "name": "sum(p50_ms)",
+                      "expression": "SUM(`p50_ms`)"
+                    },
+                    {
+                      "name": "sum(p95_ms)",
+                      "expression": "SUM(`p95_ms`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "ts",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "Time"
+                },
+                "y": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "sum(p50_ms)",
+                      "displayName": "p50 (ms)"
+                    },
+                    {
+                      "fieldName": "sum(p95_ms)",
+                      "displayName": "p95 (ms)"
+                    }
+                  ]
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Latency percentiles over time"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 9,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "hdr-traffic",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Traffic & predictions"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "volume-ts",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_volume",
+                  "fields": [
+                    {
+                      "name": "ts",
+                      "expression": "`ts`"
+                    },
+                    {
+                      "name": "sum(requests)",
+                      "expression": "SUM(`requests`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": {
+                  "fieldName": "ts",
+                  "scale": {
+                    "type": "temporal"
+                  },
+                  "displayName": "Time"
+                },
+                "y": {
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "fields": [
+                    {
+                      "fieldName": "sum(requests)",
+                      "displayName": "Requests"
+                    }
+                  ]
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Request volume over time"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 16,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "pred-mix",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_pred",
+                  "fields": [
+                    {
+                      "name": "sum(requests)",
+                      "expression": "SUM(`requests`)"
+                    },
+                    {
+                      "name": "prediction",
+                      "expression": "`prediction`"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(requests)",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Requests"
+                },
+                "color": {
+                  "fieldName": "prediction",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Readmit (HIGH)",
+                        "color": "#FF3621"
+                      },
+                      {
+                        "value": "No readmit (LOW)",
+                        "color": "#00A972"
+                      }
+                    ]
+                  },
+                  "displayName": "Prediction"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Prediction mix (readmit vs. not)"
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 16,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "hdr-recent",
+            "multilineTextboxSpec": {
+              "lines": [
+                "### Recent requests"
+              ]
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 22,
+            "width": 6,
+            "height": 1
+          }
+        },
+        {
+          "widget": {
+            "name": "recent",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "ds_recent",
+                  "fields": [
+                    {
+                      "name": "request_time",
+                      "expression": "`request_time`"
+                    },
+                    {
+                      "name": "patient_id",
+                      "expression": "`patient_id`"
+                    },
+                    {
+                      "name": "prediction",
+                      "expression": "`prediction`"
+                    },
+                    {
+                      "name": "execution_duration_ms",
+                      "expression": "`execution_duration_ms`"
+                    },
+                    {
+                      "name": "status_code",
+                      "expression": "`status_code`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  {
+                    "fieldName": "request_time",
+                    "displayName": "Request time"
+                  },
+                  {
+                    "fieldName": "patient_id",
+                    "displayName": "Patient ID"
+                  },
+                  {
+                    "fieldName": "prediction",
+                    "displayName": "Prediction"
+                  },
+                  {
+                    "fieldName": "execution_duration_ms",
+                    "displayName": "Latency (ms)"
+                  },
+                  {
+                    "fieldName": "status_code",
+                    "displayName": "Status"
+                  }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Recent requests (last 100)"
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 23,
+            "width": 6,
+            "height": 7
+          }
+        }
+      ]
+    }
+  ],
+  "uiSettings": {
+    "theme": {
+      "widgetHeaderAlignment": "ALIGNMENT_UNSPECIFIED"
+    }
+  }
+}

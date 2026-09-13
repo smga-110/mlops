@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # MAGIC %md
 # MAGIC # 02 · Featurization — Feature Tables & Automatic Feature Lookup
 # MAGIC
@@ -29,7 +33,28 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install --quiet --index-url https://artifactory.pointclickcare.com/artifactory/api/pypi/pypi-virtual/simple/ databricks-feature-engineering==0.13.0.1 "mlflow>=3.8.1" lightgbm==4.5.0 scikit-learn==1.5.2
+# Package index: PCC's private Artifactory by default. For validation OUTSIDE PCC's network
+# (where that host is unreachable), blank the `pip_index_url` widget to use public PyPI. `%pip`
+# reads PIP_INDEX_URL from the environment, so we set it here — in the cell before the install.
+import os
+
+dbutils.widgets.text(
+    "pip_index_url",
+    "",#"https://artifactory.pointclickcare.com/artifactory/api/pypi/pypi-virtual/simple/",
+    "PyPI index URL (blank = public PyPI)",
+)
+_pip_index = dbutils.widgets.get("pip_index_url").strip()
+
+if _pip_index:
+    os.environ["PIP_INDEX_URL"] = _pip_index
+    print(f"pip index: {_pip_index}")
+else:
+    os.environ.pop("PIP_INDEX_URL", None)
+    print("pip index: public PyPI (default)")
+
+# COMMAND ----------
+
+# MAGIC %pip install --quiet databricks-feature-engineering==0.13.0.1 "mlflow>=3.8.1" lightgbm==4.5.0 scikit-learn==1.5.2 pyarrow==23.0.1
 # MAGIC %restart_python
 
 # COMMAND ----------
@@ -110,6 +135,7 @@ feature_lookups = [
 
 training_set = fe.create_training_set(
     df=spark.table(bq(LABELS_TABLE)),   # keys + label
+    #lookup_key = ... #Define the join column between labels df -> Feature table
     feature_lookups=feature_lookups,
     label=LABEL_COL,
     exclude_columns=[PRIMARY_KEY],  # key is for joining, not a model input
@@ -215,6 +241,9 @@ print(f"{MODEL_NAME} v{latest.version} -> alias 'prod'")
 # COMMAND ----------
 
 # A batch of patients to score — note we supply ONLY the key column
+from databricks.feature_engineering import FeatureEngineeringClient
+fe = FeatureEngineeringClient()
+
 batch_to_score = spark.table(bq(LABELS_TABLE)).select(PRIMARY_KEY).limit(10)
 
 scored = fe.score_batch(
