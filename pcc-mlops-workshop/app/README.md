@@ -102,17 +102,45 @@ npm run build
 
 ## Deploy
 
+Two ways — both idempotent (safe to re-run for redeploys) and both need **no Node build** (the
+React bundle in `frontend/dist/` is committed).
+
+### Option A — Notebook (no CLI needed) · best for workshop attendees
+
+Open **`app/deploy_app`** in the workspace (e.g. from the serverless web terminal / git folder) and
+**Run All**. It uses the Databricks SDK (pre-installed), deploys **straight from this git folder**
+(nothing to upload), and has widgets for the app name / endpoint / warehouse / catalog / schema /
+tables so attendees can point it at their own assets. It creates the app with its resources, grants
+the app SP read access to the tracking tables, deploys, and prints the URL.
+
+### Option B — `deploy.sh` (local Databricks CLI)
+
 ```bash
-# 1. build the frontend (see above), then sync source to the workspace
-databricks sync app /Workspace/Users/<you>/prth-endpoint-monitor --profile <profile>
-
-# 2. create the app once
-databricks apps create prth-endpoint-monitor --profile <profile>
-
-# 3. deploy
-databricks apps deploy prth-endpoint-monitor \
-  --source-code-path /Workspace/Users/<you>/prth-endpoint-monitor --profile <profile>
+cd app
+./deploy.sh                          # uses the workshop defaults
+PROFILE=my-cli-profile ./deploy.sh   # override any setting via env var
+BUILD=1 ./deploy.sh                  # rebuild the React frontend first (needs Node)
 ```
+
+It: syncs this folder to a workspace staging path → creates the app **with** its
+serving-endpoint (CAN_QUERY) + warehouse (CAN_USE) resources if it doesn't exist →
+grants the app's service principal `USE CATALOG`/`USE SCHEMA`/`SELECT` on the two
+tracking tables → deploys → prints the URL. Every asset name is overridable via env var
+(`PROFILE`, `APP_NAME`, `SERVING_ENDPOINT_NAME`, `SQL_WAREHOUSE_ID`, `TRACKING_CATALOG`,
+`TRACKING_SCHEMA`, `PAYLOAD_TABLE`, `OTEL_SPANS_TABLE`, `SOURCE_PATH`), matching `app.yaml`.
+
+The built SPA (`frontend/dist/`) is committed, so a plain `./deploy.sh` needs **no Node
+toolchain** — pass `BUILD=1` only if you changed the frontend.
+
+<details><summary>What it does under the hood (equivalent manual steps)</summary>
+
+```bash
+databricks sync app /Workspace/Users/<you>/apps/prth-endpoint-monitor --full --profile <profile>
+databricks apps create prth-endpoint-monitor --json @create.json --profile <profile>   # create.json declares the resources
+databricks apps deploy prth-endpoint-monitor \
+  --source-code-path /Workspace/Users/<you>/apps/prth-endpoint-monitor --mode SNAPSHOT --profile <profile>
+```
+</details>
 
 ## Permissions the app service principal needs
 
