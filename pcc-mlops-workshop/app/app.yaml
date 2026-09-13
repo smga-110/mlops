@@ -1,0 +1,32 @@
+command:
+  - "python"
+  - "-m"
+  - "uvicorn"
+  - "app:app"
+  - "--host"
+  - "0.0.0.0"
+  - "--port"
+  - "8000"
+
+# All catalog / schema / table / endpoint / warehouse references are configurable
+# here so this app can be repointed without code changes. The values below are the
+# workshop defaults in the PCC MLOps Deployment workspace.
+env:
+  - name: "SERVING_ENDPOINT_NAME"
+    value: "prth-readmission-moe-abdelsamed"
+  - name: "PATIENT_ID_KEY"
+    value: "patient_id"
+  - name: "SQL_WAREHOUSE_ID"
+    value: "50c90044d2c0ab52"
+  - name: "TRACKING_CATALOG"
+    value: "pcc_mlops_demo_catalog"
+  - name: "TRACKING_SCHEMA"
+    value: "moe_abdelsamed"
+  - name: "PAYLOAD_TABLE"
+    value: "prth_endpoint_tracking_payload"
+  - name: "OTEL_SPANS_TABLE"
+    value: "prth_endpoint_tracking_otel_spans"
+  # Volume / latency time bucket. AUTO derives it from the data's span; pin to
+  # SECOND / MINUTE / HOUR / DAY to override.
+  - name: "TIME_BUCKET"
+    value: "AUTO"

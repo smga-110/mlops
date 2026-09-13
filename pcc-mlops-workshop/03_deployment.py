@@ -1,4 +1,8 @@
 # Databricks notebook source
+# /// script
+# [tool.databricks.environment]
+# environment_version = "5"
+# ///
 # MAGIC %md
 # MAGIC # 03 · Model Deployment — Cross-Workspace Handoff & Serving
 # MAGIC
@@ -20,7 +24,27 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install --quiet --index-url https://artifactory.pointclickcare.com/artifactory/api/pypi/pypi-virtual/simple/ databricks-feature-engineering==0.13.0.1 "mlflow>=3.8.1" databricks-sdk
+# Package index: PCC's private Artifactory by default. For validation OUTSIDE PCC's network
+# (where that host is unreachable), blank the `pip_index_url` widget to use public PyPI. `%pip`
+# reads PIP_INDEX_URL from the environment, so we set it here — in the cell before the install.
+import os
+
+dbutils.widgets.text(
+    "pip_index_url",
+    "https://artifactory.pointclickcare.com/artifactory/api/pypi/pypi-virtual/simple/",
+    "PyPI index URL (blank = public PyPI)",
+)
+_pip_index = dbutils.widgets.get("pip_index_url").strip()
+if _pip_index:
+    os.environ["PIP_INDEX_URL"] = _pip_index
+    print(f"pip index: {_pip_index}")
+else:
+    os.environ.pop("PIP_INDEX_URL", None)
+    print("pip index: public PyPI (default)")
+
+# COMMAND ----------
+
+# MAGIC %pip install --quiet databricks-feature-engineering==0.13.0.1 "mlflow>=3.8.1" databricks-sdk
 # MAGIC %restart_python
 
 # COMMAND ----------
@@ -33,8 +57,8 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "pcc_mlops_workshop", "Catalog (shared metastore)")
-dbutils.widgets.text("schema", "", "Schema used by the training team (their derived schema)")
+dbutils.widgets.text("catalog", "pcc_mlops_demo_catalog", "Catalog (shared metastore)")
+dbutils.widgets.text("schema", "moe_abdelsamed", "Schema used by the training team (their derived schema)")
 
 CATALOG = dbutils.widgets.get("catalog").strip()
 SCHEMA  = dbutils.widgets.get("schema").strip()
@@ -284,30 +308,30 @@ for pid, pred in zip(sample_ids, response.predictions):
 
 # COMMAND ----------
 
-# --- UNCOMMENT THE LINES BELOW TO TEAR DOWN THIS RUN'S SERVING + ONLINE-STORE RESOURCES ---
+ #--- UNCOMMENT THE LINES BELOW TO TEAR DOWN THIS RUN'S SERVING + ONLINE-STORE RESOURCES ---
 
 # # 1. Delete the serving endpoint (stops the serving compute).
-# try:
-#     w.serving_endpoints.delete(name=ENDPOINT_NAME)
-#     print(f"Deleted endpoint {ENDPOINT_NAME}")
-# except Exception as e:
-#     print(f"Endpoint {ENDPOINT_NAME} not deleted: {e}")
+try:
+    w.serving_endpoints.delete(name=ENDPOINT_NAME)
+    print(f"Deleted endpoint {ENDPOINT_NAME}")
+except Exception as e:
+    print(f"Endpoint {ENDPOINT_NAME} not deleted: {e}")
 
 # # 2. Delete the synced online table (the UC object backed by the online store).
-# try:
-#     w.database.delete_synced_database_table(ONLINE_TABLE)
-#     print(f"Deleted synced online table {ONLINE_TABLE}")
-# except Exception as e:
-#     print(f"Synced table {ONLINE_TABLE} not deleted: {e}")
+try:
+    w.database.delete_synced_database_table(ONLINE_TABLE)
+    print(f"Deleted synced online table {ONLINE_TABLE}")
+except Exception as e:
+    print(f"Synced table {ONLINE_TABLE} not deleted: {e}")
 
 # # 3. Delete the Lakebase online store (this is the always-on, billable instance).
-# try:
-#     fe.delete_online_store(name=ONLINE_STORE)
-#     print(f"Deleted online store {ONLINE_STORE}")
-# except Exception as e:
-#     print(f"Online store {ONLINE_STORE} not deleted: {e}")
+try:
+    fe.delete_online_store(name=ONLINE_STORE)
+    print(f"Deleted online store {ONLINE_STORE}")
+except Exception as e:
+    print(f"Online store {ONLINE_STORE} not deleted: {e}")
 
 # # 4. (Full teardown) Also drop the schema — removes the feature table, labels, raw data, and model.
 # #    Leave commented unless you want a completely clean slate.
-# # spark.sql(f"DROP SCHEMA IF EXISTS {bq(CATALOG + '.' + SCHEMA)} CASCADE")
-# # print(f"Dropped schema {CATALOG}.{SCHEMA}")
+spark.sql(f"DROP SCHEMA IF EXISTS {bq(CATALOG + '.' + SCHEMA)} CASCADE")
+print(f"Dropped schema {CATALOG}.{SCHEMA}")
